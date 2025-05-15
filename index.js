@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
+const { ObjectId } = require('mongodb');
 require('dotenv').config()
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const port = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ async function run() {
     const biodataCollection = client.db('matrimonySite').collection('biodatas');
     const storyCollection = client.db('matrimonySite').collection('story');
     const favouriteCollection = client.db('matrimonySite').collection('favourites');
+    const requestCollection = client.db('matrimonySite').collection('request');
 
     //  get apis
 
@@ -71,6 +73,24 @@ async function run() {
       res.send(biodatas); // ✅ returns array
     });
 
+    // GET /requests?email=&biodataId=
+    app.get('/requests', async (req, res) => {
+      const { email, biodataId } = req.query;
+      const existing = await requestCollection.findOne({ requesterEmail: email, targetBiodataId: biodataId });
+      res.send({ isRequested: !!existing });
+    });
+
+
+    app.get('/admin/requests', async (req, res) => {
+      try {
+        const requests = await requestCollection.find().toArray();
+        res.send(requests);
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to fetch requests' });
+      }
+    });
+
+
 
 
     // post apis
@@ -93,6 +113,29 @@ async function run() {
       res.send(result);
     });
 
+    // POST /requests — store a new biodata request
+    app.post('/requests', async (req, res) => {
+      const { requesterEmail, targetBiodataId, targetEmail } = req.body;
+
+      // Check if already requested
+      const existing = await requestCollection.findOne({ requesterEmail, targetBiodataId });
+      if (existing) {
+        return res.status(400).send({ message: 'Already requested' });
+      }
+
+      const newRequest = {
+        requesterEmail,
+        targetBiodataId,
+        targetEmail,
+        status: false, // Initially false (pending)
+        createdAt: new Date()
+      };
+
+      const result = await requestCollection.insertOne(newRequest);
+      res.send(result);
+    });
+
+
     // delete apis
     app.delete('/favourites', async (req, res) => {
       const { email, biodataId } = req.query;
@@ -100,6 +143,16 @@ async function run() {
       res.send(result);
     });
 
+    // patch apis
+    // PATCH /requests/:id — approve contact request
+    app.patch('/requests/:id', async (req, res) => {
+      const { id } = req.params;
+      const result = await requestCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status: true } }
+      );
+      res.send(result);
+    });
 
 
 

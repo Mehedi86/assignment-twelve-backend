@@ -104,16 +104,30 @@ async function run() {
       const result = await biodataCollection.insertOne(biodata);
       res.send(result)
     })
-    
+
     app.put('/biodatas/:id', async (req, res) => {
-      const id = req.params.id;
-      const updatedBiodata = req.body;
-      const result = await biodataCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updatedBiodata }
-      );
-      res.send(result);
-    });
+    try {
+        const id = req.params.id;
+        const updatedBiodata = req.body;
+        
+        // Remove _id from the update data to avoid modifying it
+        delete updatedBiodata._id;
+
+        const result = await biodataCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updatedBiodata }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send({ message: 'Biodata not found' });
+        }
+
+        res.send(result);
+    } catch (error) {
+        console.error('Error updating biodata:', error);
+        res.status(500).send({ message: 'Error updating biodata', error: error.message });
+    }
+});
 
     app.post('/favourites', async (req, res) => {
       const { userEmail, biodataId } = req.body;

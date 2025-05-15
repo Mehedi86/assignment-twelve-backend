@@ -90,6 +90,11 @@ async function run() {
       }
     });
 
+    app.get('/biodatas/email/:email', async (req, res) => {
+      const email = req.params.email;
+      const biodata = await biodataCollection.findOne({ contactEmail: email });
+      res.send(biodata);
+    });
 
 
 
@@ -99,6 +104,16 @@ async function run() {
       const result = await biodataCollection.insertOne(biodata);
       res.send(result)
     })
+    
+    app.put('/biodatas/:id', async (req, res) => {
+      const id = req.params.id;
+      const updatedBiodata = req.body;
+      const result = await biodataCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedBiodata }
+      );
+      res.send(result);
+    });
 
     app.post('/favourites', async (req, res) => {
       const { userEmail, biodataId } = req.body;

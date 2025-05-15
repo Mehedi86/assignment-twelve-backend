@@ -74,10 +74,22 @@ async function run() {
     });
 
     // GET /requests?email=&biodataId=
+    // GET /requests?email= - get requests made by a specific user
     app.get('/requests', async (req, res) => {
-      const { email, biodataId } = req.query;
-      const existing = await requestCollection.findOne({ requesterEmail: email, targetBiodataId: biodataId });
-      res.send({ isRequested: !!existing });
+      try {
+        const { email } = req.query;
+        let query = {};
+
+        if (email) {
+          query = { requesterEmail: email };
+        }
+
+        const requests = await requestCollection.find(query).toArray();
+        res.send(requests);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+        res.status(500).send({ message: 'Failed to fetch requests' });
+      }
     });
 
 
@@ -106,28 +118,28 @@ async function run() {
     })
 
     app.put('/biodatas/:id', async (req, res) => {
-    try {
+      try {
         const id = req.params.id;
         const updatedBiodata = req.body;
-        
+
         // Remove _id from the update data to avoid modifying it
         delete updatedBiodata._id;
 
         const result = await biodataCollection.updateOne(
-            { _id: new ObjectId(id) },
-            { $set: updatedBiodata }
+          { _id: new ObjectId(id) },
+          { $set: updatedBiodata }
         );
 
         if (result.matchedCount === 0) {
-            return res.status(404).send({ message: 'Biodata not found' });
+          return res.status(404).send({ message: 'Biodata not found' });
         }
 
         res.send(result);
-    } catch (error) {
+      } catch (error) {
         console.error('Error updating biodata:', error);
         res.status(500).send({ message: 'Error updating biodata', error: error.message });
-    }
-});
+      }
+    });
 
     app.post('/favourites', async (req, res) => {
       const { userEmail, biodataId } = req.body;
